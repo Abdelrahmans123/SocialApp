@@ -12,7 +12,7 @@ import IError from "./utils/Error";
 import ValidationError from "./utils/ValidationError";
 import connectDB from "./DB/connection.db";
 const envPath: string = path.resolve("./config/.env");
-config({ path: envPath });
+config({});
 
 const bootstrap = (): void => {
 	const port: number | string = process.env.PORT || 3000;
