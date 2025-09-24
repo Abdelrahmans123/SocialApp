@@ -1,0 +1,4 @@
+[secrets_scan]
+omit_paths = ["public/", "build/", "dist/"]
+[secrets_scan]
+omit_keys = ["PUBLIC_API_KEY"]
