@@ -40,16 +40,23 @@ export abstract class DatabaseRepository<TDocument> {
 	async update({
 		filter,
 		update,
+		notUsedData,
 		options,
 	}: {
 		filter: RootFilterQuery<TDocument>;
 		update: Partial<TDocument>;
+		notUsedData?: Partial<TDocument>;
 		options?: QueryOptions<TDocument>;
 	}): Promise<HydratedDocument<TDocument> | null> {
-		return await this.model.findOneAndUpdate(
+		console.log("🚀 ~ DatabaseRepository ~ update ~ filter:", filter);
+		console.log("🚀 ~ DatabaseRepository ~ update ~ update:", update);
+		const result = await this.model.findOneAndUpdate(
 			filter,
-			{ $set: update },
-			{ new: true, ...options }
+			{ $set: update, ...(notUsedData ? { $unset: notUsedData } : {}) },
+			{ new: true, ...(options || {}) }
 		);
+		console.log("🚀 ~ DatabaseRepository ~ update ~ update result:", update);
+		console.log("🚀 ~ DatabaseRepository ~ update ~ result:", result);
+		return result;
 	}
 }

@@ -35,10 +35,7 @@ class AuthService {
 	private userModel = new UserRepository(User);
 	private tokenModel = new TokenRepository(Token);
 
-	constructor() {
-		// Initialize any necessary properties or dependencies
-	}
-	public register = async (req: Request, res: Response): Promise<Response> => {
+	register = async (req: Request, res: Response): Promise<Response> => {
 		const { name, password, email, phone, gender, role } =
 			req.body as IRegisterData;
 
@@ -46,41 +43,27 @@ class AuthService {
 		if (existingUser) {
 			throw new ApplicationError(409, "Email Already Exist");
 		}
-
-		const hashedPassword = generateHash({ plainText: password });
 		const encryptPhone = encrypt({
 			plainText: phone,
 			secretKey: process.env.SECRET_KEY ?? "",
 		});
 
 		const otp = customAlphabet("0123456789", 6)();
-		const otpHash = generateHash({ plainText: otp });
 
 		const [newUser] =
 			(await this.userModel.createUser({
 				data: [
 					{
 						name,
-						password: hashedPassword,
+						password,
 						email,
 						phone: encryptPhone,
 						gender,
-						otp: otpHash,
+						otp,
 						role,
 					},
 				],
 			})) || [];
-
-		await sendEmail({
-			to: email,
-			subject: "Welcome to Social App",
-			text: `Hello ${name},\n\nThank you for registering with Social App. We are excited to have you on board!\n\nBest regards,\nSocial App Team`,
-			html: `<h1>Hello ${name},</h1>
-		       <p>Thank you for registering with Social App. We are excited to have you on board!</p>
-		       <p>Best regards,<br>Social App Team</p>
-		       <p>Your OTP is: <strong>${otp}</strong></p>`,
-		});
-
 		return res.status(201).json({
 			message: "User registered successfully",
 			data: newUser,
@@ -148,9 +131,10 @@ class AuthService {
 			throw new ApplicationError(400, "Invalid OTP");
 		}
 
-		await this.userModel.update({
+		await this.userModel.updateUser({
 			filter: { email },
-			update: { confirmEmail: true, $unset: { otp: 1 } } as any,
+			data: { confirmEmail: new Date() },
+			notUsedData: { otp: "1" },
 		});
 
 		return res.status(200).json({
@@ -163,37 +147,57 @@ class AuthService {
 		res: Response,
 		next: NextFunction
 	) => {
-		console.log("🔥 forgotPassword method triggered");
+		try {
+			console.log("🔥 forgotPassword method triggered");
 
-		const { email } = req.body;
-		const user = await this.userModel.findOne({ filter: { email } });
-		console.log("🚀 ~ AuthService ~ user:", user);
+			const { email } = req.body;
+			const user = await this.userModel.findOne({ filter: { email } });
+			console.log("🚀 ~ AuthService ~ Found user:", {
+				id: user?._id,
+				email: user?.email,
+				name: user?.name,
+				existingOtp: user?.otp, // Check if there's already an OTP
+			});
 
-		if (!user) {
-			throw new ApplicationError(404, "User not found");
+			if (!user) {
+				throw new ApplicationError(404, "User not found");
+			}
+
+			console.log("🚀 ~ AuthService ~ otpHash:", "hELL");
+			const otp = customAlphabet("0123456789", 6)();
+			console.log("🔥 Generated OTP (plain):", otp);
+			const otpHash = generateHash({ plainText: otp });
+			console.log("🔥 Generated OTP Hash:", otpHash);
+			console.log("🔥 About to update user with:");
+			console.log("   Filter:", { email });
+			console.log("   Data:", { otp: otpHash });
+			const updateUser = await this.userModel.updateUser({
+				filter: { email },
+				data: { otp: otpHash },
+			});
+			console.log("🚀 ~ AuthService ~ updateUser:", updateUser);
+
+			await sendEmail({
+				to: email,
+				subject: "Password Reset OTP",
+				text: `Your OTP for password reset is: ${otp}`,
+				html: `<h1>Password Reset OTP</h1><p>Your OTP for password reset is: <strong>${otp}</strong></p>`,
+			});
+
+			res.status(200).json({
+				message: "OTP sent to your email",
+				data: {
+					userId: user._id,
+					name: user.name,
+					email: user.email,
+					otp: otpHash,
+				},
+			});
+		} catch (error) {
+			console.error("🔴 AuthService forgotPassword error:", error);
+			next(error);
+			return;
 		}
-
-		console.log("🚀 ~ AuthService ~ otpHash:", "hELL");
-		const otp = customAlphabet("0123456789", 6)();
-		const otpHash = generateHash({ plainText: otp });
-
-		const updateUser = await this.userModel.update({
-			filter: { email },
-			update: { otp: otpHash },
-		});
-		console.log("🚀 ~ AuthService ~ updateUser:", updateUser);
-
-		await sendEmail({
-			to: email,
-			subject: "Password Reset OTP",
-			text: `Your OTP for password reset is: ${otp}`,
-			html: `<h1>Password Reset OTP</h1><p>Your OTP for password reset is: <strong>${otp}</strong></p>`,
-		});
-
-		res.status(200).json({
-			message: "OTP sent to your email",
-			data: { userId: user._id, name: user.name, email: user.email, otp }, // Remove otp in production
-		});
 	};
 
 	// Reset Password

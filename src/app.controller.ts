@@ -5,8 +5,9 @@ import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import type { Express, NextFunction, Request, Response } from "express";
-import authRoutes from "./modules/Auth/auth.controller";
-// import { globalErrorHandler } from "./utils/ErrorResponse";
+import { router as authRoutes } from "./modules/Auth";
+import { router as userRoutes } from "./modules/User";
+import { router as postRoutes } from "./modules/Post";
 import IError from "./utils/Error";
 import ValidationError from "./utils/ValidationError";
 import connectDB from "./DB/connection.db";
@@ -28,6 +29,8 @@ const bootstrap = (): void => {
 	);
 	connectDB();
 	app.use("/api/auth", authRoutes);
+	app.use("/api/users", userRoutes);
+	app.use("/api/posts", postRoutes);
 	app.all("{/*dummy}", (req: Request, res: Response): Response => {
 		return res.status(404).json({ message: "Route Not Found" });
 	});
