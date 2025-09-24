@@ -1,5 +1,4 @@
 import { config } from "dotenv";
-import path from "path";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -11,7 +10,6 @@ import { router as postRoutes } from "./modules/Post";
 import IError from "./utils/Error";
 import ValidationError from "./utils/ValidationError";
 import connectDB from "./DB/connection.db";
-const envPath: string = path.resolve("./config/.env");
 config({});
 
 const bootstrap = (): void => {
